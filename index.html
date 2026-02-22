@@ -129,13 +129,15 @@
     </span>
 </div>
                 <div id="card-white" class="player-card">
-                    <div class="graphic-ctrl">
-                        エフェクト/Effect <label class="switch"><input type="checkbox" id="graphic-toggle" checked><span class="slider"></span></label>
-                    </div>
-                    <input type="text" value="Player2" id="name-white" style="border:none; border-bottom:1px solid #ccc; width:140px;">
-                    <span style="display:inline-block; width:18px; height:18px; border-radius:50%; background:#fff; border:1px solid #000; vertical-align:middle;"></span>
-                    <span class="undo-count"><br>待った / Undo: <span id="undo-white">0</span></span>
-                </div>
+    <div class="graphic-ctrl">
+        エフェクト/Effect <label class="switch"><input type="checkbox" id="graphic-toggle" checked><span class="slider"></span></label>
+    </div>
+    <input type="text" value="Player2" id="name-white" style="border:none; border-bottom:1px solid #ccc; width:140px;">
+    <span style="display:inline-block; width:18px; height:18px; border-radius:50%; background:#fff; border:1px solid #000; vertical-align:middle;"></span>
+    <span class="undo-count" style="display: inline-block; width: 100%; margin-top: 4px;">
+        待った / Undo: <span id="undo-white">0</span>
+    </span>
+</div>
             </div>
             <div id="board-container">
                 <canvas id="board" width="600" height="600"></canvas>
@@ -432,5 +434,6 @@ updateUIState(); drawBoard();
 </script>
 </body>
 </html>
+
 
 

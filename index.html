@@ -10,8 +10,9 @@
         :root { --board-color: #f3c752; --accent-blue: #007bff; --success-green: #28a745; --reset-cyan: #00ced1; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #d1d1d1; margin: 0; padding: 20px; min-height: 100vh; }
         
-        .main-wrapper { display: flex; justify-content: center; align-items: center; gap: 40px; width: 100%; margin: 20px 0; }
-        .side-ad { width: 160px; height: 600px; background: rgba(0,0,0,0.05); text-align: center; display: none; line-height: 600px; color: #888; border: 1px dashed #aaa; flex-shrink: 0; }
+        /* 左右広告の開始位置を盤面と合わせるための調整 */
+        .main-wrapper { display: flex; justify-content: center; align-items: flex-start; gap: 40px; width: 100%; margin: 20px 0; }
+        .side-ad { width: 160px; height: 600px; text-align: center; display: none; flex-shrink: 0; overflow: hidden; margin-top: 107px; } /* プレイヤーカード＋余白分を考慮 */
         @media (min-width: 1100px) { .side-ad { display: block; } }
 
         .app-title { text-align: center; margin-bottom: 20px; }
@@ -23,7 +24,7 @@
         button { padding: 8px 16px; border: none; border-radius: 4px; background: #333; color: white; cursor: pointer; font-weight: bold; line-height: 1.2; text-align: center; }
         button:hover { background: #555; }
 
-        .player-info-container { display: flex; justify-content: space-between; width: 600px; margin-bottom: 20px; position: relative; margin-top: 10px; }
+        .player-info-container { display: flex; justify-content: space-between; width: 600px; margin-bottom: 20px; position: relative; margin-top: 10px; height: 87px; }
         .player-card { background: #fff; padding: 12px; border-radius: 8px; width: 220px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
         .player-card.active { box-shadow: 0 0 0 3px #ff4757; }
         .undo-count { font-size: 0.8em; color: #666; margin-top: 5px; display: block; }
@@ -48,11 +49,11 @@
         #custom-dialog { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 12px; z-index: 1000; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); min-width: 320px; }
         .dialog-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; }
 
-        /* 修正箇所: 画面の最下部に固定せず、コンテンツの最後に配置されるよう変更 */
         .footer-copyright { width: 100%; margin-top: 60px; padding: 20px 0; font-size: 0.75em; color: #666; text-align: left; line-height: 1.6; z-index: 10; align-self: flex-start; }
 
         @media (max-width: 767px) {
-            .player-info-container { width: 100%; max-width: 600px; flex-direction: column; gap: 35px; }
+            .side-ad { display: none !important; }
+            .player-info-container { width: 100%; max-width: 600px; flex-direction: column; gap: 35px; height: auto; }
             #board-container { width: 95vw; height: 95vw; }
             .footer-copyright { text-align: center; margin-top: 40px; padding-bottom: 20px; }
         }
@@ -76,7 +77,9 @@
 </div>
 
 <div class="main-wrapper">
-    <div class="side-ad" id="ad-left">AD</div>
+    <div class="side-ad" id="ad-left">
+        <script type="text/javascript">rakuten_design="slide";rakuten_affiliateId="41f4e4e4.5e13dfa4.41f4e4e5.73f96ec2";rakuten_items="ctsmatch";rakuten_genreId="0";rakuten_size="160x600";rakuten_target="_blank";rakuten_theme="gray";rakuten_border="on";rakuten_auto_mode="off";rakuten_genre_title="off";rakuten_recommend="on";rakuten_ts="1771751815109";</script><script type="text/javascript" src="https://xml.affiliate.rakuten.co.jp/widget/js/rakuten_widget.js?20230106"></script>
+    </div>
     <div class="content-center">
         <div class="player-info-container">
             <div id="card-black" class="player-card active">
@@ -105,9 +108,13 @@
             <button onclick="playbackMove('next')">＞</button>
             <button onclick="playbackMove('end')">≫|</button>
         </div>
-        <div class="ad-container" id="ad-bottom" style="margin-top:20px; min-height:90px; background:rgba(0,0,0,0.05); text-align:center; line-height:90px; color:#888;">AD</div>
+        <div class="ad-container" id="ad-bottom" style="margin-top:20px; min-height:160px; text-align:center;">
+            <script type="text/javascript">rakuten_design="slide";rakuten_affiliateId="41f4e4e4.5e13dfa4.41f4e4e5.73f96ec2";rakuten_items="ctsmatch";rakuten_genreId="0";rakuten_size="468x160";rakuten_target="_blank";rakuten_theme="gray";rakuten_border="on";rakuten_auto_mode="on";rakuten_genre_title="off";rakuten_recommend="on";rakuten_ts="1771752065755";</script><script type="text/javascript" src="https://xml.affiliate.rakuten.co.jp/widget/js/rakuten_widget.js?20230106"></script>
+        </div>
     </div>
-    <div class="side-ad" id="ad-right">AD</div>
+    <div class="side-ad" id="ad-right">
+        <script type="text/javascript">rakuten_design="slide";rakuten_affiliateId="41f4e4e4.5e13dfa4.41f4e4e5.73f96ec2";rakuten_items="ctsmatch";rakuten_genreId="0";rakuten_size="160x600";rakuten_target="_blank";rakuten_theme="gray";rakuten_border="on";rakuten_auto_mode="off";rakuten_genre_title="off";rakuten_recommend="on";rakuten_ts="1771751815109";</script><script type="text/javascript" src="https://xml.affiliate.rakuten.co.jp/widget/js/rakuten_widget.js?20230106"></script>
+    </div>
 </div>
 
 <div class="footer-copyright">
@@ -133,7 +140,7 @@
 </div>
 
 <script>
-/* 既存の完璧なロジックを維持 */
+/* ロジック部分は一切変更していません */
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const effectCtx = document.getElementById('effect-layer').getContext('2d');

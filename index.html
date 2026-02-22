@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="連珠の対人対戦アプリです。CPU対戦機能は付いておりません。現在iOS/Androidアプリ申請中です">
+    <title>連珠対戦 - Japanese Five in a Row game(Renju)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Train+One&display=swap');
+        :root { --board-color: #f3c752; --accent-blue: #007bff; --success-green: #28a745; --reset-cyan: #00ced1; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #d1d1d1; margin: 0; padding: 20px; min-height: 100vh; }
+        
+        .main-wrapper { display: flex; justify-content: center; align-items: center; gap: 40px; width: 100%; margin: 20px 0; }
+        .side-ad { width: 160px; height: 600px; background: rgba(0,0,0,0.05); text-align: center; display: none; line-height: 600px; color: #888; border: 1px dashed #aaa; flex-shrink: 0; }
+        @media (min-width: 1100px) { .side-ad { display: block; } }
+
+        .app-title { text-align: center; margin-bottom: 20px; }
+        .app-title h1 { font-family: 'Train One', cursive; font-size: 3em; color: #333; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); letter-spacing: 0.1em; }
+        .app-title p { font-size: 0.9em; color: #666; margin-top: 5px; }
+
+        .top-controls { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; min-height: 60px; }
+        .button-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; background: #333; color: white; cursor: pointer; font-weight: bold; line-height: 1.2; text-align: center; }
+        button:hover { background: #555; }
+
+        .player-info-container { display: flex; justify-content: space-between; width: 600px; margin-bottom: 20px; position: relative; margin-top: 10px; }
+        .player-card { background: #fff; padding: 12px; border-radius: 8px; width: 220px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
+        .player-card.active { box-shadow: 0 0 0 3px #ff4757; }
+        .undo-count { font-size: 0.8em; color: #666; margin-top: 5px; display: block; }
+        
+        .graphic-ctrl { position: absolute; right: 0; bottom: 105%; display: flex; align-items: center; gap: 8px; font-size: 0.8em; font-weight: bold; color: #555; white-space: nowrap; margin-bottom: 5px; }
+        .switch { position: relative; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-blue); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        #board-container { position: relative; width: 600px; height: 600px; touch-action: manipulation; flex-shrink: 0; }
+        canvas { position: absolute; top: 0; left: 0; border-radius: 2px; }
+        #board { background-color: var(--board-color); z-index: 1; }
+        #effect-layer { z-index: 2; pointer-events: none; }
+        #fireworks { z-index: 3; pointer-events: none; display: none; }
+
+        .playback-controls { margin-top: 15px; display: flex; gap: 8px; background: #eee; padding: 10px; border-radius: 8px; }
+        
+        #dialog-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
+        #custom-dialog { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 12px; z-index: 1000; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); min-width: 320px; }
+        .dialog-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; }
+
+        /* 修正箇所: 画面の最下部に固定せず、コンテンツの最後に配置されるよう変更 */
+        .footer-copyright { width: 100%; margin-top: 60px; padding: 20px 0; font-size: 0.75em; color: #666; text-align: left; line-height: 1.6; z-index: 10; align-self: flex-start; }
+
+        @media (max-width: 767px) {
+            .player-info-container { width: 100%; max-width: 600px; flex-direction: column; gap: 35px; }
+            #board-container { width: 95vw; height: 95vw; }
+            .footer-copyright { text-align: center; margin-top: 40px; padding-bottom: 20px; }
+        }
+    </style>
+</head>
+<body ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+
+<div class="app-title">
+    <h1>連珠対戦</h1>
+    <p>Japanese Five in a Row game (Renju)</p>
+</div>
+
+<div class="top-controls">
+    <div class="button-row">
+        <button id="undo-btn" onclick="undo()">待った<br>Undo</button>
+        <button onclick="saveKifu()" style="background:var(--success-green);">棋譜保存<br>Save</button>
+        <button onclick="document.getElementById('file-input').click()" style="background: #666;">棋譜読込<br>Read</button>
+        <button onclick="resetBoard()" style="background:var(--reset-cyan);">盤面初期化<br>Reset</button>
+        <input type="file" id="file-input" style="display:none" accept=".txt" onchange="handleFileLoad(event)">
+    </div>
+</div>
+
+<div class="main-wrapper">
+    <div class="side-ad" id="ad-left">AD</div>
+    <div class="content-center">
+        <div class="player-info-container">
+            <div id="card-black" class="player-card active">
+                <span style="display:inline-block; width:18px; height:18px; border-radius:50%; background:#000; vertical-align:middle;"></span>
+                <input type="text" value="Player1" id="name-black" style="border:none; border-bottom:1px solid #ccc; width:140px;">
+                <span class="undo-count">待った / Undo: <span id="undo-black">0</span></span>
+            </div>
+            <div id="card-white" class="player-card">
+                <div class="graphic-ctrl">
+                    エフェクト/Effect <label class="switch"><input type="checkbox" id="graphic-toggle" checked><span class="slider"></span></label>
+                </div>
+                <input type="text" value="Player2" id="name-white" style="border:none; border-bottom:1px solid #ccc; width:140px;">
+                <span style="display:inline-block; width:18px; height:18px; border-radius:50%; background:#fff; border:1px solid #000; vertical-align:middle;"></span>
+                <span class="undo-count">待った / Undo: <span id="undo-white">0</span></span>
+            </div>
+        </div>
+        <div id="board-container">
+            <canvas id="board" width="600" height="600"></canvas>
+            <canvas id="effect-layer" width="600" height="600"></canvas>
+            <canvas id="fireworks" width="600" height="600"></canvas>
+        </div>
+        <div id="playback-panel" class="playback-controls" style="display:none;">
+            <button onclick="playbackMove('start')">|≪</button>
+            <button onclick="playbackMove('prev')">＜</button>
+            <button id="play-pause-btn" onclick="toggleAutoPlay()">▶</button>
+            <button onclick="playbackMove('next')">＞</button>
+            <button onclick="playbackMove('end')">≫|</button>
+        </div>
+        <div class="ad-container" id="ad-bottom" style="margin-top:20px; min-height:90px; background:rgba(0,0,0,0.05); text-align:center; line-height:90px; color:#888;">AD</div>
+    </div>
+    <div class="side-ad" id="ad-right">AD</div>
+</div>
+
+<div class="footer-copyright">
+    連珠の対人対戦アプリです。CPU対戦機能は付いておりません。現在iOS/Androidアプリ申請中です<br>
+    This is a Renju PvP app. CPU battle function is not included. iOS/Android app applications are currently in progress.<br>
+    <br>
+    このプログラムの著作権はKeiichi Katoに帰属し、複製を禁止します。<br>
+    The copyright of this program belongs to Keiichi Kato and reproduction is prohibited.
+</div>
+
+<div id="dialog-overlay"></div>
+<div id="custom-dialog">
+    <span id="dialog-winner" style="font-size:1.4em; font-weight:bold; display:block; margin-bottom:10px; color:#000;"></span>
+    <div id="dialog-reason-container" style="color:red; font-weight:bold; margin-bottom:15px; font-size:1.1em;">
+        <div id="dialog-reason-1"></div>
+        <div id="dialog-reason-2"></div>
+    </div>
+    <div class="dialog-buttons">
+        <button onclick="closeDialog(); enterReviewMode();" style="background:#666;">盤面に戻る<br>Back</button>
+        <button onclick="saveKifu()" style="background:var(--success-green);">棋譜保存<br>Save</button>
+        <button onclick="location.reload()" style="background:#333;">新規対局<br>New</button>
+    </div>
+</div>
+
+<script>
+/* 既存の完璧なロジックを維持 */
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const effectCtx = document.getElementById('effect-layer').getContext('2d');
+const fwCanvas = document.getElementById('fireworks');
+const fwCtx = fwCanvas.getContext('2d');
+const SIZE = 15;
+const PADDING = 40;
+const CELL_SIZE = (canvas.width - PADDING * 2) / (SIZE - 1);
+const STONE_RADIUS = CELL_SIZE * 0.45;
+let history = []; 
+let playbackFullHistory = [];
+let playbackIndex = 0;
+let isPlaybackMode = false;
+let isAutoPlaying = false;
+let autoPlayInterval = null;
+let currentPlayer = 1; 
+let gameOver = false;
+let mousePos = { x: -100, y: -100 };
+let confirmedPos = null;
+let undoCounts = { 1: 0, 2: 0 };
+let isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+function getBoard(targetHistory = history) {
+    const b = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+    targetHistory.forEach(m => b[m.r][m.c] = m.p);
+    return b;
+}
+function updateUIState() {
+    const pP = document.getElementById('playback-panel');
+    const undoBtn = document.getElementById('undo-btn');
+    pP.style.display = isPlaybackMode ? 'flex' : 'none';
+    undoBtn.style.display = isPlaybackMode ? 'none' : 'block';
+}
+function drawBoard() {
+    ctx.clearRect(0, 0, 600, 600);
+    ctx.strokeStyle = '#000';
+    for (let i = 0; i < SIZE; i++) {
+        ctx.beginPath(); ctx.moveTo(PADDING, PADDING + i * CELL_SIZE); ctx.lineTo(600 - PADDING, PADDING + i * CELL_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(PADDING + i * CELL_SIZE, PADDING); ctx.lineTo(PADDING + i * CELL_SIZE, 600 - PADDING); ctx.stroke();
+    }
+    ctx.fillStyle = '#000'; [[3,3],[3,11],[11,3],[11,11],[7,7]].forEach(([r,c]) => { ctx.beginPath(); ctx.arc(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, 4, 0, 7); ctx.fill(); });
+    const displayHistory = isPlaybackMode ? playbackFullHistory.slice(0, playbackIndex) : history;
+    displayHistory.forEach((m, idx) => {
+        ctx.beginPath(); ctx.arc(PADDING + m.c * CELL_SIZE, PADDING + m.r * CELL_SIZE, STONE_RADIUS, 0, 7);
+        ctx.fillStyle = m.p === 1 ? '#000' : '#fff'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.stroke();
+        if (idx === displayHistory.length - 1) { ctx.strokeStyle = 'red'; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1; }
+    });
+    if (!gameOver && !isPlaybackMode) {
+        if (isTouchDevice) {
+            if (confirmedPos) {
+                const { r, c } = confirmedPos;
+                ctx.save(); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, STONE_RADIUS, 0, 7);
+                ctx.fillStyle = currentPlayer === 1 ? '#000' : '#fff'; ctx.fill(); ctx.restore();
+                ctx.strokeStyle = 'blue'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(PADDING + c * CELL_SIZE, PADDING); ctx.lineTo(PADDING + c * CELL_SIZE, 600 - PADDING); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(PADDING, PADDING + r * CELL_SIZE); ctx.lineTo(600 - PADDING, PADDING + r * CELL_SIZE); ctx.stroke();
+            }
+        } else {
+            const c = Math.round((mousePos.x - PADDING) / CELL_SIZE), r = Math.round((mousePos.y - PADDING) / CELL_SIZE);
+            if (r>=0 && r<SIZE && c>=0 && c<SIZE && !getBoard()[r][c]) {
+                ctx.save(); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, STONE_RADIUS, 0, 7);
+                ctx.fillStyle = currentPlayer === 1 ? '#000' : '#fff'; ctx.fill(); ctx.restore();
+            }
+        }
+    }
+}
+function analyzeLine(r, c, dr, dc, p, board) {
+    let res = { five: false, fours: [], activeThrees: [], long: false };
+    let count = 1; 
+    for(let s of [1, -1]) { let nr = r + dr*s, nc = c + dc*s; while(nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc] === p) { count++; nr+=dr*s; nc+=dc*s; } }
+    if (count === 5) res.five = true; if (count > 5) res.long = true;
+    for (let start = -5; start <= 0; start++) {
+        let seg = []; for (let i = 0; i < 6; i++) { let nr = r + dr*(start+i), nc = c + dc*(start+i); if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE) seg.push({r: nr, c: nc, v: board[nr][nc]}); else seg.push({r:-1, c:-1, v:-1}); }
+        let fv = seg.slice(0, 5);
+        if (fv.filter(x => x.v === p).length === 4 && fv.filter(x => x.v === 0).length === 1) {
+            let emptyIdx = fv.findIndex(x => x.v === 0);
+            let checkR = fv[emptyIdx].r, checkC = fv[emptyIdx].c;
+            let tempBoard = board.map(row => [...row]); tempBoard[checkR][checkC] = p;
+            let fiveFound = false;
+            [[0,1],[1,0],[1,1],[1,-1]].forEach(([tdr, tdc]) => {
+                let tc = 1; for(let s of [1,-1]){let nr=checkR+tdr*s, nc=checkC+tdc*s; while(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&tempBoard[nr][nc]===p){tc++; nr+=tdr*s; nc+=tdc*s;}}
+                if(tc >= 5) fiveFound = true;
+            });
+            if(fiveFound) res.fours.push(fv.filter(x => x.v === p).map(x => ({r:x.r, c:x.c})));
+        }
+        if (seg.length === 6 && seg[0].v === 0 && seg[5].v === 0) { 
+            let mid = seg.slice(1, 5);
+            if (mid.filter(x => x.v === p).length === 3 && mid.filter(x => x.v === 0).length === 1) {
+                let emptyIdx = mid.findIndex(x => x.v === 0);
+                let checkR = mid[emptyIdx].r, checkC = mid[emptyIdx].c;
+                let tempBoard = board.map(row => [...row]); tempBoard[checkR][checkC] = p;
+                let isFour = false;
+                [[0,1],[1,0],[1,1],[1,-1]].forEach(([tdr, tdc]) => {
+                    let tc = 1; for(let s of [1,-1]){let nr=checkR+tdr*s, nc=checkC+tdc*s; while(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&tempBoard[nr][nc]===p){tc++; nr+=tdr*s; nc+=tdc*s;}}
+                    if(tc >= 5) isFour = true;
+                });
+                if(!isFour) res.activeThrees.push(mid.filter(x => x.v === p).map(x => ({r:x.r, c:x.c})));
+            }
+        }
+    }
+    const uniq = (arr) => [...new Set(arr.map(l => l.map(p=>`${p.r},${p.c}`).sort().join('|')))].map(s => s.split('|').map(x => ({r:parseInt(x.split(',')[0]), c:parseInt(x.split(',')[1])})));
+    res.fours = uniq(res.fours); res.activeThrees = uniq(res.activeThrees);
+    return res;
+}
+function runLightning(effs) {
+    if (!document.getElementById('graphic-toggle').checked) return;
+    let start = Date.now();
+    function anim() {
+        effectCtx.clearRect(0,0,600,600); 
+        if (Date.now() - start < 500) {
+            effs.forEach(e => {
+                effectCtx.strokeStyle = e.color; 
+                effectCtx.lineWidth = e.isFive ? 8 : 4;
+                effectCtx.shadowBlur = 20; effectCtx.shadowColor = e.color; effectCtx.beginPath();
+                let pts = e.line.sort((a,b) => a.r - b.r || a.c - b.c);
+                effectCtx.moveTo(PADDING + pts[0].c * CELL_SIZE, PADDING + pts[0].r * CELL_SIZE);
+                for(let i=1; i<pts.length; i++) {
+                    let tx = PADDING + pts[i].c * CELL_SIZE, ty = PADDING + pts[i].r * CELL_SIZE;
+                    effectCtx.lineTo(tx + (Math.random()-0.5)*15, ty + (Math.random()-0.5)*15);
+                    effectCtx.lineTo(tx, ty);
+                }
+                effectCtx.stroke();
+            }); requestAnimationFrame(anim);
+        } else effectCtx.clearRect(0,0,600,600);
+    } anim();
+}
+function placeStone(r, c) {
+    history.push({r, c, p: currentPlayer});
+    const board = getBoard();
+    let tFour = 0, tThree = 0, isFive = false, isLong = false, effs = [];
+    [[0,1],[1,0],[1,1],[1,-1]].forEach(([dr, dc]) => {
+        let res = analyzeLine(r, c, dr, dc, currentPlayer, board);
+        if (res.five) isFive = true; if (res.long) isLong = true;
+        tFour += res.fours.length; tThree += res.activeThrees.length;
+        res.fours.forEach(l => effs.push({line: l, color: 'red', isFive: res.five}));
+        res.activeThrees.forEach(l => effs.push({line: l, color: 'yellow', isFive: false}));
+    });
+    drawBoard(); runLightning(effs);
+    if (currentPlayer === 1) {
+        if (isLong) return endGame(2, "禁手 (Forbidden Hand)", "長連 (Too long continuous)"); 
+        if (isFive) return endGame(1, "5連 (continuous 5)");
+        if (tFour >= 2) return endGame(2, "禁手 (Forbidden Hand)", "四四 (multiple 4)"); 
+        if (tThree >= 2) return endGame(2, "禁手 (Forbidden Hand)", "三三 (multiple 3)");
+    } else { if (isFive || isLong) return endGame(2, "5連 (continuous 5)"); }
+    currentPlayer = currentPlayer === 1 ? 2 : 1;
+    confirmedPos = null; updateUIState();
+    document.getElementById('card-black').classList.toggle('active', currentPlayer===1);
+    document.getElementById('card-white').classList.toggle('active', currentPlayer===2);
+}
+canvas.addEventListener('mousemove', e => {
+    if (isTouchDevice) return;
+    const r = canvas.getBoundingClientRect();
+    mousePos = { x: (e.clientX - r.left) * (600 / r.width), y: (e.clientY - r.top) * (600 / r.height) };
+    drawBoard();
+});
+canvas.addEventListener('click', e => {
+    if (gameOver || isPlaybackMode) return;
+    const r = canvas.getBoundingClientRect();
+    const x = (e.clientX - r.left) * (600 / r.width), y = (e.clientY - r.top) * (600 / r.height);
+    const col = Math.round((x - PADDING) / CELL_SIZE), row = Math.round((y - PADDING) / CELL_SIZE);
+    if (row < 0 || row >= SIZE || col < 0 || col >= SIZE || getBoard()[row][col]) return;
+    if (isTouchDevice) {
+        if (confirmedPos && confirmedPos.r === row && confirmedPos.c === col) placeStone(row, col);
+        else { confirmedPos = { r: row, c: col }; drawBoard(); }
+    } else { placeStone(row, col); }
+});
+function undo() {
+    if(history.length > 0 && !gameOver) {
+        const last = history.pop();
+        undoCounts[last.p]++;
+        document.getElementById(`undo-${last.p === 1 ? 'black' : 'white'}`).innerText = undoCounts[last.p];
+        currentPlayer = last.p; confirmedPos = null;
+        document.getElementById('card-black').classList.toggle('active', currentPlayer===1);
+        document.getElementById('card-white').classList.toggle('active', currentPlayer===2);
+        drawBoard();
+    }
+}
+function resetBoard() {
+    if(confirm("盤面を初期化しますか？ / Reset board?")) {
+        history = []; currentPlayer = 1; gameOver = false; confirmedPos = null;
+        undoCounts = { 1: 0, 2: 0 };
+        document.getElementById('undo-black').innerText = "0";
+        document.getElementById('undo-white').innerText = "0";
+        document.getElementById('card-black').className = 'player-card active';
+        document.getElementById('card-white').className = 'player-card';
+        isPlaybackMode = false; updateUIState(); drawBoard();
+    }
+}
+function playbackMove(t) {
+    if(t==='start') playbackIndex=0;
+    else if(t==='prev'&&playbackIndex>0) playbackIndex--;
+    else if(t==='next'&&playbackIndex<playbackFullHistory.length) playbackIndex++;
+    else if(t==='end') playbackIndex=playbackFullHistory.length;
+    drawBoard();
+    if (playbackIndex > 0) {
+        const last = playbackFullHistory[playbackIndex-1];
+        const cB = getBoard(playbackFullHistory.slice(0, playbackIndex));
+        let effs = [];
+        [[0,1],[1,0],[1,1],[1,-1]].forEach(([dr, dc]) => {
+            let res = analyzeLine(last.r, last.c, dr, dc, last.p, cB);
+            res.fours.forEach(l => effs.push({line: l, color: 'red', isFive: res.five}));
+            res.activeThrees.forEach(l => effs.push({line: l, color: 'yellow', isFive: false}));
+        });
+        runLightning(effs);
+    }
+}
+function saveKifu() {
+    const now = new Date();
+    const Y = now.getFullYear(); const M = String(now.getMonth()+1).padStart(2,'0'); const D = String(now.getDate()).padStart(2,'0');
+    const h = String(now.getHours()).padStart(2,'0'); const m = String(now.getMinutes()).padStart(2,'0'); const s = String(now.getSeconds()).padStart(2,'0');
+    const p1 = document.getElementById('name-black').value; const p2 = document.getElementById('name-white').value;
+    const blob = new Blob([JSON.stringify({ names: [p1, p2], history: isPlaybackMode ? playbackFullHistory : history })], {type: "text/plain"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); 
+    a.download = `${Y}${M}${D} ${h}${m}${s} 連珠_${p1} vs ${p2}.txt`; a.click();
+}
+function handleFileLoad(e) { const f = e.target.files[0]; if(f) loadProcess(f); }
+function handleDrop(e) { e.preventDefault(); const f = e.dataTransfer.files[0]; if(f) loadProcess(f); }
+function loadProcess(f) {
+    const r = new FileReader(); r.onload=ev=>{
+        const d=JSON.parse(ev.target.result);
+        document.getElementById('name-black').value=d.names[0]; document.getElementById('name-white').value=d.names[1];
+        playbackFullHistory=d.history; playbackIndex=d.history.length; isPlaybackMode=true; updateUIState(); drawBoard();
+    }; r.readAsText(f);
+}
+function toggleAutoPlay() {
+    isAutoPlaying = !isAutoPlaying; const btn = document.getElementById('play-pause-btn');
+    if(isAutoPlaying) {
+        btn.innerText = "停止";
+        autoPlayInterval = setInterval(() => { if(playbackIndex < playbackFullHistory.length) playbackMove('next'); else toggleAutoPlay(); }, 800);
+    } else { btn.innerText = "▶"; clearInterval(autoPlayInterval); }
+}
+function endGame(winner, reason1, reason2 = "") {
+    gameOver = true;
+    const name = winner === 1 ? document.getElementById('name-black').value : document.getElementById('name-white').value;
+    document.getElementById('dialog-winner').innerText = `${name} Win!`;
+    document.getElementById('dialog-reason-1').innerText = reason1;
+    document.getElementById('dialog-reason-2').innerText = reason2;
+    document.getElementById('dialog-overlay').style.display='block';
+    document.getElementById('custom-dialog').style.display='block';
+}
+function enterReviewMode() {
+    playbackFullHistory = [...history]; playbackIndex = playbackFullHistory.length;
+    isPlaybackMode = true; closeDialog(); updateUIState(); drawBoard();
+}
+function closeDialog() { document.getElementById('dialog-overlay').style.display='none'; document.getElementById('custom-dialog').style.display='none'; }
+updateUIState(); drawBoard();
+</script>
+</body>
+</html>

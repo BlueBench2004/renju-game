@@ -253,42 +253,82 @@ function drawBoard() {
 }
 function analyzeLine(r, c, dr, dc, p, board) {
     let res = { five: false, fours: [], activeThrees: [], long: false };
+    
+    // 1. 連続数のカウント（五連・長連チェック）
     let count = 1; 
-    for(let s of [1, -1]) { let nr = r + dr*s, nc = c + dc*s; while(nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc] === p) { count++; nr+=dr*s; nc+=dc*s; } }
-    if (count === 5) res.five = true; if (count > 5) res.long = true;
+    for(let s of [1, -1]) { 
+        let nr = r + dr*s, nc = c + dc*s; 
+        while(nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc] === p) { 
+            count++; nr+=dr*s; nc+=dc*s; 
+        } 
+    }
+    if (count === 5) res.five = true; 
+    if (count > 5) res.long = true;
+
+    // 2. 飛びを含む「四」と「活三」の判定ロジック
+    // 自身の石を置いた地点を中心とした前後5マスの範囲（計11マス）を精査
     for (let start = -5; start <= 0; start++) {
-        let seg = []; for (let i = 0; i < 6; i++) { let nr = r + dr*(start+i), nc = c + dc*(start+i); if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE) seg.push({r: nr, c: nc, v: board[nr][nc]}); else seg.push({r:-1, c:-1, v:-1}); }
+        let seg = [];
+        for (let i = 0; i < 6; i++) {
+            let nr = r + dr*(start+i), nc = c + dc*(start+i);
+            if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE) seg.push({r: nr, c: nc, v: board[nr][nc]});
+            else seg.push({r:-1, c:-1, v:-1});
+        }
+
+        // --- 四の判定 ---
         let fv = seg.slice(0, 5);
         if (fv.filter(x => x.v === p).length === 4 && fv.filter(x => x.v === 0).length === 1) {
             let emptyIdx = fv.findIndex(x => x.v === 0);
             let checkR = fv[emptyIdx].r, checkC = fv[emptyIdx].c;
-            let tempBoard = board.map(row => [...row]); tempBoard[checkR][checkC] = p;
-            let fiveFound = false;
+            
+            // その空点に置いた時に「五」になるか（＝有効な四か）を再確認
+            let tempBoard = board.map(row => [...row]);
+            tempBoard[checkR][checkC] = p;
+            let makesFive = false;
             [[0,1],[1,0],[1,1],[1,-1]].forEach(([tdr, tdc]) => {
-                let tc = 1; for(let s of [1,-1]){let nr=checkR+tdr*s, nc=checkC+tdc*s; while(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&tempBoard[nr][nc]===p){tc++; nr+=tdr*s; nc+=tdc*s;}}
-                if(tc >= 5) fiveFound = true;
+                let tc = 1;
+                for(let s of [1,-1]){
+                    let nnr=checkR+tdr*s, nnc=checkC+tdc*s;
+                    while(nnr>=0&&nnr<SIZE&&nnc>=0&&nnc<SIZE&&tempBoard[nnr][nnc]===p){tc++; nnr+=tdr*s; nnc+=tdc*s;}
+                }
+                if(tc >= 5) makesFive = true;
             });
-            if(fiveFound) res.fours.push(fv.filter(x => x.v === p).map(x => ({r:x.r, c:x.c})));
+            if(makesFive) res.fours.push(fv.filter(x => x.v === p).map(x => ({r:x.r, c:x.c})));
         }
+
+        // --- 活三（飛び三含む）の判定 ---
+        // 両端が空いている（seg[0]とseg[5]が空）かつ、中4マスのうち3つが自分の石
         if (seg.length === 6 && seg[0].v === 0 && seg[5].v === 0) { 
             let mid = seg.slice(1, 5);
             if (mid.filter(x => x.v === p).length === 3 && mid.filter(x => x.v === 0).length === 1) {
                 let emptyIdx = mid.findIndex(x => x.v === 0);
                 let checkR = mid[emptyIdx].r, checkC = mid[emptyIdx].c;
-                let tempBoard = board.map(row => [...row]); tempBoard[checkR][checkC] = p;
-                let isFour = false;
+                
+                // その空点に置いた時に「禁手ではない活四」になるかを確認
+                let tempBoard = board.map(row => [...row]);
+                tempBoard[checkR][checkC] = p;
+                let isEffectiveFour = false;
                 [[0,1],[1,0],[1,1],[1,-1]].forEach(([tdr, tdc]) => {
-                    let tc = 1; for(let s of [1,-1]){let nr=checkR+tdr*s, nc=checkC+tdc*s; while(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&tempBoard[nr][nc]===p){tc++; nr+=tdr*s; nc+=tdc*s;}}
-                    if(tc >= 5) isFour = true;
+                    let tc = 1;
+                    for(let s of [1,-1]){
+                        let nnr=checkR+tdr*s, nnc=checkC+tdc*s;
+                        while(nnr>=0&&nnr<SIZE&&nnc>=0&&nnc<SIZE&&tempBoard[nnr][nnc]===p){tc++; nnr+=tdr*s; nnc+=tdc*s;}
+                    }
+                    // 伸びた先が「五」になれば、それは活三の種となる有効な四
+                    if(tc === 5) isEffectiveFour = true; 
                 });
-                if(!isFour) res.activeThrees.push(mid.filter(x => x.v === p).map(x => ({r:x.r, c:x.c})));
+                if(isEffectiveFour) res.activeThrees.push(mid.filter(x => x.v === p).map(x => ({r:x.r, c:x.c})));
             }
         }
     }
+
+    // 重複削除の正規化
     const uniq = (arr) => [...new Set(arr.map(l => l.map(p=>`${p.r},${p.c}`).sort().join('|')))].map(s => s.split('|').map(x => ({r:parseInt(x.split(',')[0]), c:parseInt(x.split(',')[1])})));
-    res.fours = uniq(res.fours); res.activeThrees = uniq(res.activeThrees);
+    res.fours = uniq(res.fours); 
+    res.activeThrees = uniq(res.activeThrees);
     return res;
 }
+    
 function runLightning(effs) {
     if (!document.getElementById('graphic-toggle').checked) return;
     let start = Date.now();
@@ -434,6 +474,7 @@ updateUIState(); drawBoard();
 </script>
 </body>
 </html>
+
 
 
 

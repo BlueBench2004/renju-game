@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="description" content="連珠の対人対戦アプリです。CPU対戦機能は付いておりません。現在iOS/Androidアプリ申請中です">
-    <title>連珠対戦 - Japanese Five in a Row game(Renju)</title>
+    <title>連珠盤 - Japanese Five in a Row game(Renju)</title>
     <meta name="viewport" content="width=600, initial-scale=0.6, user-scalable=yes, viewport-fit=cover">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Train+One&display=swap');
@@ -379,12 +379,12 @@ function placeStone(r, c) {
     if (effs.length > 0) runLightning(effs);
 
     if (stoneP === 1) {
-        if (isFive) { endGame(1, "5連 (continuous 5)"); return; }
-        if (isLong) { endGame(2, "禁手 (Forbidden Hand)", "長連 (Too long continuous)"); return; }
+        if (isFive) { endGame(1, "5連 (5 in a Row)"); return; }
+        if (isLong) { endGame(2, "禁手 (Forbidden Hand)", "長連 (Overline)"); return; }
         if (tFourLines >= 2) { endGame(2, "禁手 (Forbidden Hand)", "四四 (multiple 4)"); return; }
         if (tThreeLines >= 2) { endGame(2, "禁手 (Forbidden Hand)", "三三 (multiple 3)"); return; }
     } else { 
-        if (isFive || isLong) { endGame(2, "5連 (continuous 5)"); return; }
+        if (isFive || isLong) { endGame(2, "5連 (5 in a Row)"); return; }
     }
     
     currentPlayer = stoneP === 1 ? 2 : 1;
@@ -497,3 +497,4 @@ updateUIState(); drawBoard();
 </script>
 </body>
 </html>
+
